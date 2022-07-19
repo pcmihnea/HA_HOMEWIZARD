@@ -128,8 +128,8 @@ The implementation relies on a [AppDaemon-powered](https://appdaemon.readthedocs
 	```
 
 ## 4. Configure the HomeAssistant instance
-
-Add the following lines in `configuration.yaml` file (present inside the user-defined `homeassistant` configuration folder).  Depending on the paired sensors/actuators, a specific configuration is necessary:  
+Add the following lines in `configuration.yaml` file (present inside the user-defined `homeassistant` configuration folder).  
+Depending on the paired sensors/actuators, a specific configuration is necessary:  
 - Energy socket named `ENERGY1`:  
 ```  
 sensor:
