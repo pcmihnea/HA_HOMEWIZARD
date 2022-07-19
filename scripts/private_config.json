@@ -1,0 +1,26 @@
+{
+	"HOMEWIZARD":
+	{
+		"LOCAL_SERIAL_PORT": "/dev/ttyUSB0",
+		"CLOUD_POLLING_INTERVAL": 0,
+		"CLOUD_DEVICE_CODES_PRINT": 0,
+		"CLOUD_AUTH":
+		{
+			"USERNAME": "_username_",
+			"PASSWORD": "_password_"
+		},
+		"BACKUP_DEVICE_CODES":
+		{
+			"AABBCCDD": {
+				"name": "TEMP_OUTSIDE",
+				"type": "hw_thermometer",
+				"code": "AABBCCDD"
+			},
+			"DDCCBBAA": {
+				"name": "ENERGY_FRIDGE",
+				"type": "hw_energy_switch",
+				"code": "DDCCBBAA"
+			}
+		}
+	}
+}
