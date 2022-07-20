@@ -128,57 +128,7 @@ The implementation relies on a [AppDaemon-powered](https://appdaemon.readthedocs
 	```
 
 ## 4. Configure the HomeAssistant instance
-Add the following lines in `configuration.yaml` file (present inside the user-defined `homeassistant` configuration folder).  
-Depending on the paired sensors/actuators, a specific configuration is necessary:  
-- Energy socket named `ENERGY1`:  
-```  
-sensor:
-	- platform: mqtt
-	name: ENERGY1_VOLT
-	unique_id: "homewizard_energy1_volt"
-	state_topic: "homewizard/sensors/ENERGY1"
-	value_template: "{{ value_json.VOLT }}"
-	device_class: voltage
-	unit_of_measurement: "V"
-	- platform: mqtt
-	name: ENERGY1_AMP
-	unique_id: "homewizard_energy1_amp"
-	state_topic: "homewizard/sensors/ENERGY1"
-	value_template: "{{ value_json.AMP }}"
-	device_class: current
-	unit_of_measurement: "A"
-	- platform: mqtt
-	name: ENERGY1_WATT
-	unique_id: "homewizard_energy1_watt"
-	state_topic: "homewizard/sensors/ENERGY1"
-	value_template: "{{ value_json.WATT }}"
-	device_class: power
-	unit_of_measurement: "W"
-	- platform: integration
-	name: ENERGY1_KWH
-	source: sensor.ENERGY1_WATT
-	unit_prefix: k
-	method: left
-```
-- Thermometer named `OUTSIDE`:  
-```
-sensor:
-	- platform: mqtt
-	name: OUTSIDE_TEMP
-	unique_id: "homewizard_outside_temp"
-	state_topic: "homewizard/sensors/OUTSIDE"
-	value_template: "{{ value_json.TEMP }}"
-	device_class: temperature
-	unit_of_measurement: "°C"
-	- platform: mqtt
-	name: OUTSIDE_HUMID
-	unique_id: "homewizard_outside_humid"
-	state_topic: "homewizard/sensors/OUTSIDE"
-	value_template: "{{ value_json.HUMID }}"
-	device_class: humidity
-	unit_of_measurement: "%"
-```
-If all is well, after a HA/AppDaemon restart the newly created sensors shall be available.
+User configuration is not necessary, as [MQTT auto-discovery](https://www.home-assistant.io/docs/mqtt/discovery/) is implemented.  
 
 # Who/where/when?
 All the reverse-engineering, development, integration, and documentation efforts are based on the latest software and hardware versions available at the time of writing (July 2022), and licensed under the GNU General Public License v3.0.
