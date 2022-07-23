@@ -2,6 +2,7 @@ import asyncio
 import json
 import struct
 import traceback
+from datetime import time
 
 import mqttapi as mqtt
 import requests
@@ -17,13 +18,13 @@ TIMEOUT_HTTP_REQUEST = 2
 
 class mqtt_homewizard(mqtt.Mqtt):
 
-    def cloud_connect(self, kwargs):
+    def cloud_connect(self, cloud_auth):
         try:
-            res = requests.get('https://api.homewizardeasyonline.com/v1/auth/devices', auth=kwargs,
+            res = requests.get('https://api.homewizardeasyonline.com/v1/auth/devices', auth=cloud_auth,
                                timeout=TIMEOUT_HTTP_REQUEST)
             if 200 != res.status_code: raise Exception('HTTP result not 200')
             hw_id = json.loads(res.content)['devices'][0]['identifier'].split('HW_LINK', 1)[1]
-            res = requests.post('https://api.homewizardeasyonline.com/v1/auth/token', auth=kwargs,
+            res = requests.post('https://api.homewizardeasyonline.com/v1/auth/token', auth=cloud_auth,
                                 json={'device': 'HW_LINK' + hw_id}, timeout=TIMEOUT_HTTP_REQUEST)
             if 200 != res.status_code: raise Exception('HTTP result not 200')
             bearer_auth = {'Authorization': 'Bearer %s' % json.loads(res.content)['token']}
@@ -40,7 +41,7 @@ class mqtt_homewizard(mqtt.Mqtt):
 
     async def cloud_polling(self, kwargs):
         try:
-            for device in self.cloud_connect(kwargs['cloud_auth'])['devices']:
+            for device in self.cloud_connect(cloud_auth=kwargs['cloud_auth'])['devices']:
                 topic = 'sensor/'
                 match device['type']:
                     case 'hw_energy_switch':
@@ -73,7 +74,7 @@ class mqtt_homewizard(mqtt.Mqtt):
         ser = serial.Serial()
         try:
             rx_data = []
-            ser = serial.Serial(kwargs['kwargs']['serial_port'], 115200, timeout=TIMEOUT_SERIAL_READ)
+            ser = serial.Serial(kwargs['dev_config']['serial_port'], 115200, timeout=TIMEOUT_SERIAL_READ)
             ser.flushInput()
             self.log('LOCAL_SAMPLING START')
             while ser.is_open:
@@ -91,7 +92,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                                 crc = (0x100 - crc) & 0xFF
                                 if crc == data_elems[4] and HEADER_BYTES == (
                                         (data_elems[0] << 32) | data_elems[1]):
-                                    sensor_info = kwargs['kwargs']['dev_codes'][format(data_elems[2], 'X')]
+                                    sensor_info = kwargs['dev_config']['dev_codes'][format(data_elems[2], 'X')]
                                     sensor_data = bytearray(data_elems[3])
                                     topic = 'sensor/'
                                     match sensor_info['type']:
@@ -188,8 +189,11 @@ class mqtt_homewizard(mqtt.Mqtt):
                         topic = 'binary_' + topic
                     case _:
                         continue
+                unique_id = 0
                 for cfg in config:
                     if bool(cfg):
+                        cfg['unique_id'] = device['code'] + str(unique_id)
+                        unique_id += 1
                         self.mqtt_publish('homeassistant/' + topic + cfg['name'] + '/config',
                                           payload=json.dumps(cfg), retain=True)
             self.log('MQTT_DISCOVERY OK')
@@ -208,7 +212,7 @@ class mqtt_homewizard(mqtt.Mqtt):
             self.log('CLOUD_POLLING_PERIOD ' + str(cloud_polling_interval))
             try:
                 dev_codes = {}
-                dev_cfg = self.cloud_connect(cloud_auth)
+                dev_cfg = self.cloud_connect(cloud_auth=cloud_auth)
                 for device in dev_cfg['devices']:
                     dev_codes[device['listen_code']] = {'name': device['name'], 'type': device['type'],
                                                         'code': device['code']}
@@ -219,18 +223,17 @@ class mqtt_homewizard(mqtt.Mqtt):
             except Exception:
                 dev_codes = private_conf['HOMEWIZARD']['BACKUP_DEVICE_CODES']
                 self.log(traceback.format_exc())
-            await self.run_in(self.mqtt_discovery, 1, dev_codes=dev_codes)
-            await self.run_in(self.cloud_polling, 2, cloud_auth=cloud_auth)
 
+            await self.run_in(self.mqtt_discovery, 1, dev_codes=dev_codes)
             if cloud_polling_interval > 0:
                 self.log('CLOUD_POLLING START')
                 await self.run_every(self.cloud_polling, 'now', cloud_polling_interval, cloud_auth=cloud_auth)
-            else:
-                if bool(dev_codes):
-                    await self.run_in(self.local_sampling, 2,
-                                      kwargs={"serial_port": private_conf['HOMEWIZARD']['LOCAL_SERIAL_PORT'],
+            elif bool(dev_codes):
+                await self.run_daily(self.cloud_polling, time(0, 0, 0), cloud_auth=cloud_auth)
+                await self.run_in(self.local_sampling, 2,
+                                  dev_config={"serial_port": private_conf['HOMEWIZARD']['LOCAL_SERIAL_PORT'],
                                               "dev_codes": dev_codes})
-                else:
-                    raise Exception('DEV_CODES')
+            else:
+                raise Exception('DEV_CODES')
         except Exception:
             self.log(traceback.format_exc())
