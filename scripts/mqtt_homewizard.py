@@ -219,6 +219,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                 if private_conf['HOMEWIZARD']['CLOUD_DEVICE_CODES_PRINT']:
                     self.log(json.dumps(dev_cfg, indent=2))
                     self.log(json.dumps(dev_codes, indent=2))
+                await self.run_in(self.cloud_polling, 1, cloud_auth=cloud_auth)
                 self.log('DEV_CFG OK')
             except Exception:
                 dev_codes = private_conf['HOMEWIZARD']['BACKUP_DEVICE_CODES']
