@@ -33,36 +33,43 @@ class mqtt_homewizard(mqtt.Mqtt):
                             {"name": device['name'] + '_V',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.VOLT }}',
-                             "device_class": 'voltage', "unit_of_measurement": 'V'},
+                             "device_class": 'voltage', "unit_of_measurement": 'V',
+                             "expire_after": 600},
                             {"name": device['name'] + '_A',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.AMP }}',
-                             "device_class": 'current', "unit_of_measurement": 'A'},
+                             "device_class": 'current', "unit_of_measurement": 'A',
+                             "expire_after": 600},
                             {"name": device['name'] + '_W',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.WATT }}',
-                             "device_class": 'power', "unit_of_measurement": 'W'}]
+                             "device_class": 'power', "unit_of_measurement": 'W',
+                             "expire_after": 600}]
                     case 'hw_thermometer':
                         config = [
                             {"name": device['name'] + '_T',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.TEMP }}',
-                             "device_class": 'temperature', "unit_of_measurement": '°C'},
+                             "device_class": 'temperature', "unit_of_measurement": '°C',
+                             "expire_after": 600},
                             {"name": device['name'] + '_H',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.HUMID }}',
-                             "device_class": 'humidity', "unit_of_measurement": '%'}, {}]
+                             "device_class": 'humidity', "unit_of_measurement": '%',
+                             "expire_after": 600}, {}]
                     case 'sw_leak_detector':
                         config = [
                             {"name": device['name'],
                              "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                             "device_class": 'moisture'}, {}, {}]
+                             "device_class": 'moisture',
+                             "expire_after": 600}, {}, {}]
                         topic = 'binary_' + topic
                     case 'sw_smoke_detector':
                         config = [
                             {"name": device['name'],
                              "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                             "device_class": 'smoke'}, {}, {}]
+                             "device_class": 'smoke',
+                             "expire_after": 600}, {}, {}]
                         topic = 'binary_' + topic
                     case _:
                         continue
@@ -235,4 +242,3 @@ class mqtt_homewizard(mqtt.Mqtt):
                 await self.run_in(self.serial_sampling, 2)
         except Exception:
             self.log(traceback.format_exc())
-            
