@@ -199,17 +199,17 @@ class mqtt_homewizard(mqtt.Mqtt):
                                             # [0] = UNDEFINED, [1] = LEAK
                                             buff = struct.unpack('<HH8x', sensor_data)
                                             if buff[1] & STATUS_BIT_MASK:
-                                                value = 'OFF'
-                                            else:
                                                 value = 'ON'
+                                            else:
+                                                value = 'OFF'
                                             topic = 'binary_' + topic
                                         case 'sw_smoke_detector':
                                             # [0] = UNDEFINED, [1] = SMOKE
                                             buff = struct.unpack('<HB9x', sensor_data)
                                             if buff[1] & STATUS_BIT_MASK:
-                                                value = 'OFF'
-                                            else:
                                                 value = 'ON'
+                                            else:
+                                                value = 'OFF'
                                             topic = 'binary_' + topic
                                         case _:
                                             value = {'UNDEFINED': sensor_data.hex()}
