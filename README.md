@@ -114,12 +114,14 @@ The implementation relies on a [AppDaemon-powered](https://appdaemon.readthedocs
 	
 - Edit the `private_config.json` file by configuring:  
 	- Homewizard cloud authentication credentials (`USERNAME`, `PASSWORD`),  
-	- Method selection: local sampling if `CLOUD_POLLING_INTERVAL` is equal to 0, otherwise cloud polling at the set interval (in seconds).  
-	- Serial port name `LOCAL_SERIAL_PORT`, used only during local sampling.  
-	- A valid `BACKUP_DEVICE_CODES` dictionary, obtained by running the script with `CLOUD_DEVICE_CODES_PRINT` set to 1.  
-		If a connection to the cloud server is successful, the script will print in AppDaemon's log all the paired devices' RF codes and assigned names - copy the output to the `CLOUD_DEVICE_CODES_PRINT` JSON entry.  
-		The script attempts to connect to the cloud at each startup, if unsuccessful it will use the local values from `BACKUP_DEVICE_CODES`, thus removing any reliance on Internet services.  
-		As such, this backup operation is necessary only once after each change in paired devices (re-pairing, renaming).  
+	- `CLOUD_POLLING_INTERVAL` sets the interval (in seconds) for cloud polling - if value is equal to `0` then local sampling is used,  
+	- Serial port name `SERIAL_PORT`, relevant only during local sampling,  
+	- A valid `DEVICE_CODES` dictionary.  
+		By design, even if `CLOUD_POLLING_INTERVAL` is set to `0`, the script will attempt to connect to the cloud at each startup and each day after midnight (01:00:00, or 1am).  
+		If connection is successful, the script will update the `private_config.json` file with all the paired devices' RF codes and assigned names. It will also notify the HomeAssistant instance of any changes in paired sensors.  
+		This dictionary is of use only for local sampling, in order to assign the value updates to the correct sensor entity (name).  
+		If connection is unsuccessful, it will use the last `DEVICE_CODES` values from the JSON file, thus avoiding any reliance on cloud services.  
+		As such, this implementation requires at least one connection to the cloud server, otherwise manual configuration is mandatory.  
 - Add the module to the AppDaemon app list (`apps.yaml`):  
 	```
 	mqtt_homewizard: 
