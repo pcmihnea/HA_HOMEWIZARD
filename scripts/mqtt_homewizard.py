@@ -62,14 +62,14 @@ class mqtt_homewizard(mqtt.Mqtt):
                             {"name": device['name'],
                              "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
                              "device_class": 'moisture',
-                             "expire_after": 600}, {}, {}]
+                             "expire_after": 4200}, {}, {}]
                         topic = 'binary_' + topic
                     case 'sw_smoke_detector':
                         config = [
                             {"name": device['name'],
                              "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
                              "device_class": 'smoke',
-                             "expire_after": 600}, {}, {}]
+                             "expire_after": 87000}, {}, {}]
                         topic = 'binary_' + topic
                     case _:
                         continue
