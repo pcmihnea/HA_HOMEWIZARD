@@ -4,7 +4,7 @@ import struct
 import traceback
 from datetime import time
 
-import mqttapi as mqtt
+import mqttapi as mqtt  # AppDaemon-specific API
 import requests
 import serial
 
@@ -14,6 +14,11 @@ HEADER_BYTES = 0x159202120a10
 STATUS_BIT_MASK = 0x04
 TIMEOUT_SERIAL_READ = 5
 TIMEOUT_HTTP_REQUEST = 2
+KEEPALIVE_ENERGY_SWITCH = 60 * 5
+KEEPALIVE_THERMOMETER = 60 * 5
+KEEPALIVE_LEAK_DETECTOR = 60 * (60 + 10)
+KEEPALIVE_SMOKE_DETECTOR = 60 * (60 * 24 + 10)
+
 PRIVATE_CONFIG_PATH = '/config/appdaemon/apps/private_config.json'
 
 PRIVATE_CONF = {}
@@ -34,42 +39,42 @@ class mqtt_homewizard(mqtt.Mqtt):
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.VOLT }}',
                              "device_class": 'voltage', "unit_of_measurement": 'V',
-                             "expire_after": 600},
+                             "expire_after": KEEPALIVE_ENERGY_SWITCH},
                             {"name": device['name'] + '_A',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.AMP }}',
                              "device_class": 'current', "unit_of_measurement": 'A',
-                             "expire_after": 600},
+                             "expire_after": KEEPALIVE_ENERGY_SWITCH},
                             {"name": device['name'] + '_W',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.WATT }}',
                              "device_class": 'power', "unit_of_measurement": 'W',
-                             "expire_after": 600}]
+                             "expire_after": KEEPALIVE_ENERGY_SWITCH}]
                     case 'hw_thermometer':
                         config = [
                             {"name": device['name'] + '_T',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.TEMP }}',
                              "device_class": 'temperature', "unit_of_measurement": '°C',
-                             "expire_after": 600},
+                             "expire_after": KEEPALIVE_THERMOMETER},
                             {"name": device['name'] + '_H',
                              "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                              "value_template": '{{ value_json.HUMID }}',
                              "device_class": 'humidity', "unit_of_measurement": '%',
-                             "expire_after": 600}, {}]
+                             "expire_after": KEEPALIVE_THERMOMETER}, {}]
                     case 'sw_leak_detector':
                         config = [
                             {"name": device['name'],
                              "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
                              "device_class": 'moisture',
-                             "expire_after": 4200}, {}, {}]
+                             "expire_after": KEEPALIVE_LEAK_DETECTOR}, {}, {}]
                         topic = 'binary_' + topic
                     case 'sw_smoke_detector':
                         config = [
                             {"name": device['name'],
                              "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
                              "device_class": 'smoke',
-                             "expire_after": 87000}, {}, {}]
+                             "expire_after": KEEPALIVE_SMOKE_DETECTOR}, {}, {}]
                         topic = 'binary_' + topic
                     case _:
                         continue
@@ -77,8 +82,11 @@ class mqtt_homewizard(mqtt.Mqtt):
                     if bool(cfg):
                         cfg['unique_id'] = device['code'] + str(sub_id)
                         sub_id += 1
-                        self.mqtt_publish('homeassistant/' + topic + cfg['name'] + '/config',
-                                          payload=json.dumps(cfg), retain=True)
+                        try:
+                            self.mqtt_publish('homeassistant/' + topic + cfg['name'] + '/config',
+                                              payload=json.dumps(cfg), retain=True)
+                        except Exception:
+                            self.log(traceback.format_exc())
             self.log('MQTT_DISCOVERY OK')
         except Exception:
             self.log(traceback.format_exc())
@@ -134,7 +142,10 @@ class mqtt_homewizard(mqtt.Mqtt):
                             topic = 'binary_' + topic
                         case _:
                             continue
-                    self.mqtt_publish('homeassistant/' + topic + device['name'] + '/state', payload=value)
+                    try:
+                        self.mqtt_publish('homeassistant/' + topic + device['name'] + '/state', payload=value)
+                    except Exception:
+                        self.log(traceback.format_exc())
                 self.log('CLOUD_POLL OK')
         except Exception:
             self.log(traceback.format_exc())
@@ -213,8 +224,11 @@ class mqtt_homewizard(mqtt.Mqtt):
                                             topic = 'binary_' + topic
                                         case _:
                                             value = {'UNDEFINED': sensor_data.hex()}
-                                    self.mqtt_publish('homeassistant/' + topic + sensor_info['name'] + '/state',
-                                                      payload=value)
+                                    try:
+                                        self.mqtt_publish('homeassistant/' + topic + sensor_info['name'] + '/state',
+                                                          payload=value)
+                                    except Exception:
+                                        self.log(traceback.format_exc())
                             except Exception:
                                 self.log(traceback.format_exc())
                         rx_data = []
