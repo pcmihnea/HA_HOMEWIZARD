@@ -2,7 +2,8 @@ import asyncio
 import json
 import struct
 import traceback
-from datetime import time
+from datetime import time as datetime
+import time
 
 import mqttapi as mqtt  # AppDaemon-specific API
 import requests
@@ -19,7 +20,7 @@ KEEPALIVE_THERMOMETER = 60 * 10
 KEEPALIVE_LEAK_DETECTOR = 60 * (60 + 10)
 KEEPALIVE_SMOKE_DETECTOR = 60 * (60 * 24 + 10)
 
-PRIVATE_CONFIG_PATH = '/config/appdaemon/apps/private_config.json'
+PRIVATE_CONFIG_PATH = '/config/appdaemon/apps'
 
 PRIVATE_CONF = {}
 
@@ -27,86 +28,85 @@ PRIVATE_CONF = {}
 class mqtt_homewizard(mqtt.Mqtt):
 
     async def mqtt_discovery(self):
-        try:
-            for device_id in PRIVATE_CONF['DEVICE_CODES']:
-                device = PRIVATE_CONF['DEVICE_CODES'][device_id]
-                topic = 'sensor/'
-                sub_id = 0
-                match device['type']:
-                    case 'hw_energy_switch':
-                        config = [
-                            {"name": device['name'] + '_V',
-                             "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                             "value_template": '{{ value_json.VOLT }}',
-                             "device_class": 'voltage', "unit_of_measurement": 'V',
-                             "expire_after": KEEPALIVE_ENERGY_SWITCH},
-                            {"name": device['name'] + '_A',
-                             "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                             "value_template": '{{ value_json.AMP }}',
-                             "device_class": 'current', "unit_of_measurement": 'A',
-                             "expire_after": KEEPALIVE_ENERGY_SWITCH},
-                            {"name": device['name'] + '_W',
-                             "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                             "value_template": '{{ value_json.WATT }}',
-                             "device_class": 'power', "unit_of_measurement": 'W',
-                             "expire_after": KEEPALIVE_ENERGY_SWITCH}]
-                    case 'hw_thermometer':
-                        config = [
-                            {"name": device['name'] + '_T',
-                             "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                             "value_template": '{{ value_json.TEMP }}',
-                             "device_class": 'temperature', "unit_of_measurement": '°C',
-                             "expire_after": KEEPALIVE_THERMOMETER},
-                            {"name": device['name'] + '_H',
-                             "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                             "value_template": '{{ value_json.HUMID }}',
-                             "device_class": 'humidity', "unit_of_measurement": '%',
-                             "expire_after": KEEPALIVE_THERMOMETER}, {}]
-                    case 'sw_leak_detector':
-                        config = [
-                            {"name": device['name'],
-                             "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                             "device_class": 'moisture',
-                             "expire_after": KEEPALIVE_LEAK_DETECTOR}, {}, {}]
-                        topic = 'binary_' + topic
-                    case 'sw_smoke_detector':
-                        config = [
-                            {"name": device['name'],
-                             "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                             "device_class": 'smoke',
-                             "expire_after": KEEPALIVE_SMOKE_DETECTOR}, {}, {}]
-                        topic = 'binary_' + topic
-                    case _:
-                        continue
-                for cfg in config:
-                    if bool(cfg):
-                        cfg['unique_id'] = device['code'] + str(sub_id)
-                        sub_id += 1
-                        try:
-                            self.mqtt_publish('homeassistant/' + topic + cfg['name'] + '/config',
-                                              payload=json.dumps(cfg), retain=True)
-                        except Exception:
-                            self.log(traceback.format_exc())
-            self.log('MQTT_DISCOVERY OK')
-        except Exception:
-            self.log(traceback.format_exc())
+        for device_id in PRIVATE_CONF['DEVICE_CODES']:
+            device = PRIVATE_CONF['DEVICE_CODES'][device_id]
+            topic = 'sensor/'
+            sub_id = 0
+            match device['type']:
+                case 'hw_energy_switch':
+                    config = [
+                        {"name": device['name'] + '_V',
+                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                         "value_template": '{{ value_json.VOLT }}',
+                         "device_class": 'voltage', "unit_of_measurement": 'V',
+                         "expire_after": KEEPALIVE_ENERGY_SWITCH},
+                        {"name": device['name'] + '_A',
+                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                         "value_template": '{{ value_json.AMP }}',
+                         "device_class": 'current', "unit_of_measurement": 'A',
+                         "expire_after": KEEPALIVE_ENERGY_SWITCH},
+                        {"name": device['name'] + '_W',
+                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                         "value_template": '{{ value_json.WATT }}',
+                         "device_class": 'power', "unit_of_measurement": 'W',
+                         "expire_after": KEEPALIVE_ENERGY_SWITCH}]
+                case 'hw_thermometer':
+                    config = [
+                        {"name": device['name'] + '_T',
+                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                         "value_template": '{{ value_json.TEMP }}',
+                         "device_class": 'temperature', "unit_of_measurement": '°C',
+                         "expire_after": KEEPALIVE_THERMOMETER},
+                        {"name": device['name'] + '_H',
+                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                         "value_template": '{{ value_json.HUMID }}',
+                         "device_class": 'humidity', "unit_of_measurement": '%',
+                         "expire_after": KEEPALIVE_THERMOMETER}, {}]
+                case 'sw_leak_detector':
+                    config = [
+                        {"name": device['name'],
+                         "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
+                         "device_class": 'moisture',
+                         "expire_after": KEEPALIVE_LEAK_DETECTOR}, {}, {}]
+                    topic = 'binary_' + topic
+                case 'sw_smoke_detector':
+                    config = [
+                        {"name": device['name'],
+                         "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
+                         "device_class": 'smoke',
+                         "expire_after": KEEPALIVE_SMOKE_DETECTOR}, {}, {}]
+                    topic = 'binary_' + topic
+                case _:
+                    continue
+            for cfg in config:
+                if bool(cfg):
+                    cfg['unique_id'] = device['code'] + str(sub_id)
+                    sub_id += 1
+                    self.mqtt_publish('homeassistant/' + topic + cfg['name'] + '/config',
+                                      payload=json.dumps(cfg), retain=True)
+                    time.sleep(0.1)
+        self.log('MQTT_DISCOVERY OK')
 
     def cloud_connect(self):
         try:
             cloud_auth = (PRIVATE_CONF['CLOUD_AUTH']['USERNAME'], PRIVATE_CONF['CLOUD_AUTH']['PASSWORD'])
             res = requests.get('https://api.homewizardeasyonline.com/v1/auth/devices', auth=cloud_auth,
                                timeout=TIMEOUT_HTTP_REQUEST)
-            if 200 != res.status_code: raise Exception('HTTP result not 200')
+            if 200 != res.status_code:
+                raise Exception('HTTP result not 200')
             hw_id = json.loads(res.content)['devices'][0]['identifier'].split('HW_LINK', 1)[1]
             res = requests.post('https://api.homewizardeasyonline.com/v1/auth/token', auth=cloud_auth,
                                 json={'device': 'HW_LINK' + hw_id}, timeout=TIMEOUT_HTTP_REQUEST)
-            if 200 != res.status_code: raise Exception('HTTP result not 200')
+            if 200 != res.status_code:
+                raise Exception('HTTP result not 200')
             bearer_auth = {'Authorization': 'Bearer %s' % json.loads(res.content)['token']}
             device_url = 'https://' + hw_id + '.homewizard.link'
             res = requests.get(device_url + '/handshake', headers=bearer_auth, timeout=TIMEOUT_HTTP_REQUEST)
-            if 200 != res.status_code: raise Exception('HTTP result not 200')
+            if 200 != res.status_code:
+                raise Exception('HTTP result not 200')
             res = requests.get(device_url + '/v24/home', headers=bearer_auth, timeout=TIMEOUT_HTTP_REQUEST)
-            if 200 != res.status_code: raise Exception('HTTP result not 200')
+            if 200 != res.status_code:
+                raise Exception('HTTP result not 200')
             devices = json.loads(res.content)['devices']
             self.log('CLOUD_CONNECT OK')
         except Exception:
@@ -160,10 +160,10 @@ class mqtt_homewizard(mqtt.Mqtt):
                     dev_codes[device['listen_code']] = {'name': device['name'], 'type': device['type'],
                                                         'code': device['code']}
                 PRIVATE_CONF['DEVICE_CODES'] = dev_codes
-                with open(PRIVATE_CONFIG_PATH, "r") as private_conf_file:
+                with open(PRIVATE_CONFIG_PATH + '/private_config.json', "r") as private_conf_file:
                     private_conf_dump = json.load(private_conf_file)
                 private_conf_dump['HOMEWIZARD']['DEVICE_CODES'] = dev_codes
-                with open(PRIVATE_CONFIG_PATH, "w") as private_conf_file:
+                with open(PRIVATE_CONFIG_PATH + '/private_config.json', "w") as private_conf_file:
                     json.dump(private_conf_dump, private_conf_file, ensure_ascii=False, indent=4)
                 self.log('CLOUD_SYNC OK')
         except Exception:
@@ -171,7 +171,7 @@ class mqtt_homewizard(mqtt.Mqtt):
         await self.mqtt_discovery()
         await self.cloud_poll(kwargs)
 
-    async def serial_sampling(self, kwargs):
+    async def local_sampling(self, kwargs):
         ser = serial.Serial()
         try:
             rx_data = []
@@ -243,16 +243,16 @@ class mqtt_homewizard(mqtt.Mqtt):
     async def initialize(self):
         try:
             global PRIVATE_CONF
-            with open(PRIVATE_CONFIG_PATH, "r") as private_conf_file:
+            with open(PRIVATE_CONFIG_PATH + '/private_config.json', "r") as private_conf_file:
                 PRIVATE_CONF = json.load(private_conf_file)['HOMEWIZARD']
             cloud_polling_interval = PRIVATE_CONF['CLOUD_POLLING_INTERVAL']
             self.log('CLOUD_POLLING_INTERVAL=' + str(PRIVATE_CONF['CLOUD_POLLING_INTERVAL']))
             await self.run_in(self.cloud_sync, 1)
-            await self.run_daily(self.cloud_sync, time(1, 0, 0))
+            await self.run_daily(self.cloud_sync, datetime(1, 0, 0))
             if cloud_polling_interval > 0:
                 self.log('CLOUD_POLLING START')
                 await self.run_every(self.cloud_poll, 'now+2', cloud_polling_interval)
             else:
-                await self.run_in(self.serial_sampling, 2)
+                await self.run_in(self.local_sampling, 2)
         except Exception:
             self.log(traceback.format_exc())
