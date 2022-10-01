@@ -9,6 +9,8 @@ import mqttapi as mqtt  # AppDaemon-specific API
 import requests
 import serial
 
+
+DEBUG_PRINT = 0
 PACKET_LEN = 23
 SYNC_BYTE = 0x61
 HEADER_BYTES = 0x159202120a10
@@ -32,51 +34,50 @@ class mqtt_homewizard(mqtt.Mqtt):
             device = PRIVATE_CONF['DEVICE_CODES'][device_id]
             topic = 'sensor/'
             sub_id = 0
-            match device['type']:
-                case 'hw_energy_switch':
-                    config = [
-                        {"name": device['name'] + '_V',
-                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                         "value_template": '{{ value_json.VOLT }}',
-                         "device_class": 'voltage', "unit_of_measurement": 'V',
-                         "expire_after": KEEPALIVE_ENERGY_SWITCH},
-                        {"name": device['name'] + '_A',
-                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                         "value_template": '{{ value_json.AMP }}',
-                         "device_class": 'current', "unit_of_measurement": 'A',
-                         "expire_after": KEEPALIVE_ENERGY_SWITCH},
-                        {"name": device['name'] + '_W',
-                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                         "value_template": '{{ value_json.WATT }}',
-                         "device_class": 'power', "unit_of_measurement": 'W',
-                         "expire_after": KEEPALIVE_ENERGY_SWITCH}]
-                case 'hw_thermometer':
-                    config = [
-                        {"name": device['name'] + '_T',
-                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                         "value_template": '{{ value_json.TEMP }}',
-                         "device_class": 'temperature', "unit_of_measurement": '°C',
-                         "expire_after": KEEPALIVE_THERMOMETER},
-                        {"name": device['name'] + '_H',
-                         "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
-                         "value_template": '{{ value_json.HUMID }}',
-                         "device_class": 'humidity', "unit_of_measurement": '%',
-                         "expire_after": KEEPALIVE_THERMOMETER}, {}]
-                case 'sw_leak_detector':
-                    config = [
-                        {"name": device['name'],
-                         "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                         "device_class": 'moisture',
-                         "expire_after": KEEPALIVE_LEAK_DETECTOR}, {}, {}]
-                    topic = 'binary_' + topic
-                case 'sw_smoke_detector':
-                    config = [
-                        {"name": device['name'],
-                         "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                         "device_class": 'smoke',
-                         "expire_after": KEEPALIVE_SMOKE_DETECTOR}, {}, {}]
-                    topic = 'binary_' + topic
-                case _:
+            if device['type'] == 'hw_energy_switch':
+                config = [
+                    {"name": device['name'] + '_V',
+                     "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                     "value_template": '{{ value_json.VOLT }}',
+                     "device_class": 'voltage', "unit_of_measurement": 'V',
+                     "expire_after": KEEPALIVE_ENERGY_SWITCH},
+                    {"name": device['name'] + '_A',
+                     "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                     "value_template": '{{ value_json.AMP }}',
+                     "device_class": 'current', "unit_of_measurement": 'A',
+                     "expire_after": KEEPALIVE_ENERGY_SWITCH},
+                    {"name": device['name'] + '_W',
+                     "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                     "value_template": '{{ value_json.WATT }}',
+                     "device_class": 'power', "unit_of_measurement": 'W',
+                     "expire_after": KEEPALIVE_ENERGY_SWITCH}]
+            elif device['type'] == 'hw_thermometer':
+                config = [
+                    {"name": device['name'] + '_T',
+                     "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                     "value_template": '{{ value_json.TEMP }}',
+                     "device_class": 'temperature', "unit_of_measurement": '°C',
+                     "expire_after": KEEPALIVE_THERMOMETER},
+                    {"name": device['name'] + '_H',
+                     "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
+                     "value_template": '{{ value_json.HUMID }}',
+                     "device_class": 'humidity', "unit_of_measurement": '%',
+                     "expire_after": KEEPALIVE_THERMOMETER}, {}]
+            elif device['type'] == 'sw_leak_detector':
+                config = [
+                    {"name": device['name'],
+                     "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
+                     "device_class": 'moisture',
+                     "expire_after": KEEPALIVE_LEAK_DETECTOR}, {}, {}]
+                topic = 'binary_' + topic
+            elif device['type'] == 'sw_smoke_detector':
+                config = [
+                    {"name": device['name'],
+                     "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
+                     "device_class": 'smoke',
+                     "expire_after": KEEPALIVE_SMOKE_DETECTOR}, {}, {}]
+                topic = 'binary_' + topic
+            else:
                     continue
             for cfg in config:
                 if bool(cfg):
@@ -120,28 +121,27 @@ class mqtt_homewizard(mqtt.Mqtt):
             if bool(devices):
                 for device in devices:
                     topic = 'sensor/'
-                    match device['type']:
-                        case 'hw_energy_switch':
-                            value = json.dumps({'VOLT': device['state']['energy']['voltage'],
-                                                'AMP': round(device['state']['energy']['amperage'] / 1000.0, 3),
-                                                'WATT': device['state']['energy']['wattage']})
-                        case 'hw_thermometer':
-                            value = json.dumps({'TEMP': device['state']['temperature'],
-                                                'HUMID': device['state']['humidity']})
-                        case 'sw_leak_detector':
-                            if 'ok' != device['state']['status']:
-                                value = 'ON'
-                            else:
-                                value = 'OFF'
-                            topic = 'binary_' + topic
-                        case 'sw_smoke_detector':
-                            if 'ok' != device['state']['status']:
-                                value = 'ON'
-                            else:
-                                value = 'OFF'
-                            topic = 'binary_' + topic
-                        case _:
-                            continue
+                    if device['type'] == 'hw_energy_switch':
+                        value = json.dumps({'VOLT': device['state']['energy']['voltage'],
+                                            'AMP': round(device['state']['energy']['amperage'] / 1000.0, 3),
+                                            'WATT': device['state']['energy']['wattage']})
+                    elif device['type'] == 'hw_thermometer':
+                        value = json.dumps({'TEMP': device['state']['temperature'],
+                                            'HUMID': device['state']['humidity']})
+                    elif device['type'] == 'sw_leak_detector':
+                        if 'ok' != device['state']['status']:
+                            value = 'ON'
+                        else:
+                            value = 'OFF'
+                        topic = 'binary_' + topic
+                    elif device['type'] == 'sw_smoke_detector':
+                        if 'ok' != device['state']['status']:
+                            value = 'ON'
+                        else:
+                            value = 'OFF'
+                        topic = 'binary_' + topic
+                    else:
+                        continue
                     try:
                         self.mqtt_publish('homeassistant/' + topic + device['name'] + '/state', payload=value)
                     except Exception:
@@ -154,6 +154,8 @@ class mqtt_homewizard(mqtt.Mqtt):
         try:
             global PRIVATE_CONF
             devices = self.cloud_connect()
+            if DEBUG_PRINT:
+                self.log(json.dumps(devices, indent=4))
             if bool(devices):
                 dev_codes = {}
                 for device in devices:
@@ -196,34 +198,33 @@ class mqtt_homewizard(mqtt.Mqtt):
                                     sensor_info = PRIVATE_CONF['DEVICE_CODES'][format(data_elems[2], 'X')]
                                     sensor_data = bytearray(data_elems[3])
                                     topic = 'sensor/'
-                                    match sensor_info['type']:
-                                        case 'hw_energy_switch':
-                                            # [0] = UNDEFINED, [1] = VOLT, [2] = AMP, [3] = WATT
-                                            buff = struct.unpack('<6sBHHx', sensor_data)
-                                            value = json.dumps({'VOLT': buff[1], 'AMP': round(buff[2] / 1000.0, 3),
-                                                                'WATT': buff[3]})
-                                        case 'hw_thermometer':
-                                            # [0] = UNDEFINED, [1] = TEMP, [2] = HUMID
-                                            buff = struct.unpack('<IhB5x', sensor_data)
-                                            value = json.dumps({'TEMP': round(buff[1] / 10.0, 1), 'HUMID': buff[2]})
-                                        case 'sw_leak_detector':
-                                            # [0] = UNDEFINED, [1] = LEAK
-                                            buff = struct.unpack('<HH8x', sensor_data)
-                                            if buff[1] & STATUS_BIT_MASK:
-                                                value = 'ON'
-                                            else:
-                                                value = 'OFF'
-                                            topic = 'binary_' + topic
-                                        case 'sw_smoke_detector':
-                                            # [0] = UNDEFINED, [1] = SMOKE
-                                            buff = struct.unpack('<HB9x', sensor_data)
-                                            if buff[1] & STATUS_BIT_MASK:
-                                                value = 'ON'
-                                            else:
-                                                value = 'OFF'
-                                            topic = 'binary_' + topic
-                                        case _:
-                                            value = {'UNDEFINED': sensor_data.hex()}
+                                    if sensor_info['type'] == 'hw_energy_switch':
+                                        # [0] = UNDEFINED, [1] = VOLT, [2] = AMP, [3] = WATT
+                                        buff = struct.unpack('<6sBHHx', sensor_data)
+                                        value = json.dumps({'VOLT': buff[1], 'AMP': round(buff[2] / 1000.0, 3),
+                                                            'WATT': buff[3]})
+                                    elif sensor_info['type'] == 'hw_thermometer':
+                                        # [0] = UNDEFINED, [1] = TEMP, [2] = HUMID
+                                        buff = struct.unpack('<IhB5x', sensor_data)
+                                        value = json.dumps({'TEMP': round(buff[1] / 10.0, 1), 'HUMID': buff[2]})
+                                    elif sensor_info['type'] == 'sw_leak_detector':
+                                        # [0] = UNDEFINED, [1] = LEAK
+                                        buff = struct.unpack('<HH8x', sensor_data)
+                                        if buff[1] & STATUS_BIT_MASK:
+                                            value = 'ON'
+                                        else:
+                                            value = 'OFF'
+                                        topic = 'binary_' + topic
+                                    elif sensor_info['type'] == 'sw_smoke_detector':
+                                        # [0] = UNDEFINED, [1] = SMOKE
+                                        buff = struct.unpack('<HB9x', sensor_data)
+                                        if buff[1] & STATUS_BIT_MASK:
+                                            value = 'ON'
+                                        else:
+                                            value = 'OFF'
+                                        topic = 'binary_' + topic
+                                    else:
+                                        value = {'UNDEFINED': sensor_data.hex()}
                                     try:
                                         self.mqtt_publish('homeassistant/' + topic + sensor_info['name'] + '/state',
                                                           payload=value)
