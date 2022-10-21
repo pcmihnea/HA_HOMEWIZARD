@@ -24,8 +24,8 @@ During reverse-engineering, a set number of device types have been tested, and t
 Two distinct methods are presented - software-only cloud polling, and hardware-based sampling.  
 
 ### 2.1. METHOD1 - Communication with the cloud services
-- Albeit more comfortable, this polling approach relies fully on the availability of the manufacturer's cloud servers, which may not the strongest point of modern IoT devices.  
-- The Android app communicates via HTTPS and exchanges information with the server(s) via JSON payloads - by deploying a MitM attack, the data flow can be observed:  
+Albeit more comfortable, this polling approach relies fully on the availability of the manufacturer's cloud servers, which may not the strongest point of modern IoT devices.  
+The Android app communicates via HTTPS and exchanges information with the server(s) via JSON payloads - by deploying a MitM attack, the data flow can be observed:  
 	- First, the username (plain-text e-mail) and password (SHA hashed) used during gateway registration is required. 
 		`hashlib.sha1(plain_text_password.encode()).hexdigest()`, where `plain_text_password` is the password in human-readable form:  
 	- A GET request, with user/password authentication, to `https://api.homewizardeasyonline.com/v1/auth/devices` returns a JSON payload containing the identifiers of all the gateways registered on the user's account:  
@@ -63,10 +63,10 @@ The sensor gateway unit, held together with a single T5 Torx security screw, has
 
 Of interest are the RF transceiver and microcontroller - the ATMEGA328P chip handles the data exchange between the Si44612A (SPI) and AR9331 (UART), while the transceiver communicates via RF with all paired sensors and actuators.  
 By connecting the USB-to-Serial RX pin to the UART line (115200bps, 8N1) between ATMEGA328P and AR9331 (i.e. MCU TX to SOC RX), present at testpoints `TP104` (MCU TX), `TP105` (GND), and `TP106` (MCU RX), a protocol can be observed.  
-- Each time a device send its new measurement value via RF, the transceiver receives and decodes them, relays to the MCU, which in turn relays to the SOC. As such, any value update is event-triggered, and not polled like the previous method.  
-- Although the data bytes are presented in this document as hex-coded, litte-endian, the actual transmissions are done using raw data bytes.  
-- A 1-byte payload of `0x61` is sent periodically by the MCU as a synchronize/keep-alive signal.  
-- A sensor value measurement update payload structure can be defined as `HEADER[6] CODE[4] DATA[12] CRC[1]`, where:  
+Each time a device send its new measurement value via RF, the transceiver receives and decodes them, relays to the MCU, which in turn relays to the SOC. As such, any value update is event-triggered, and not polled like the previous method.  
+Although the data bytes are presented in this document as hex-coded, litte-endian, the actual transmissions are done using raw data bytes.  
+A 1-byte payload of `0x61` is sent periodically by the MCU as a synchronize/keep-alive signal.  
+A sensor value measurement update payload structure can be defined as `HEADER[6] CODE[4] DATA[12] CRC[1]`, where:  
 	- [i] = i number of bytes,  
 	- `HEADER` = always `0x159202120a10`,  
 	- `CODE` = sensor's listen code (presented as `listen_code` in the JSON payload from previous method),  
@@ -75,15 +75,22 @@ By connecting the USB-to-Serial RX pin to the UART line (115200bps, 8N1) between
 			- `UNDEFINED` = undefined/unused data bytes,  
 			- `VOLT`, `AMP`, `WATT` = current unsigned integers values of the voltage (in Volts), amperage (in milliAmps), and wattage (in Watts),  
 			- `PAD` = padding, all null bytes (`0x00`).
-		- Thermometers (`'type' == 'hw_thermometer'`): `UNDEFINED[4] TEMP[2] HUMID[1] PAD[5]`, where:  
+		- Thermometers (`'type' == 'hw_thermometer'`): `UNDEFINED[2] BATT[1] UNDEFINED[1] TEMP[2] HUMID[1] PAD[5]`, where:  
+			- `UNDEFINED` = undefined/unused data bytes,  
+			- `BATT` = bit #1 (mask 0x01) is set when battery level is NOT low,  
 			- `TEMP` = current signed integer value of the temperature (in 1/10 °C),  
 			- `HUMID` = current unsigned integer value of the humidity (in %).  
-		- Water detectors (`'type' == 'sw_leak_detector'`): `UNDEFINED[2], LEAK[2] PAD[8]`, where:  
-			- `LEAK` = bit 3 (mask `0x04`) is set only when a leak is detected.  
-		- Smoke detectors (`'type' == 'sw_smoke_detector'`): `UNDEFINED[2], SMOKE[1] PAD[9]`, where:  
-			- `SMOKE` = bit 3 (mask `0x04`) is set only when smoke is detected.  
+		- Water detectors (`'type' == 'sw_leak_detector'`): `UNDEFINED[1] BATT[1] UNDEFINED[1] LEAK[1] PAD[8]`, where:  
+			- `UNDEFINED` = undefined/unused data bytes,  
+			- `BATT` = bit #1 (mask 0x01) is set when battery level is NOT low,  
+			- `LEAK` = bit #3 (mask `0x04`) is set only when a leak is detected.  
+		- Smoke detectors (`'type' == 'sw_smoke_detector'`): `UNDEFINED[1] BATT[1] SMOKE[1] PAD[9]`, where:  
+			- `UNDEFINED` = undefined/unused data bytes,  
+			- `BATT` = bit #1 (mask 0x01) is set when battery level is NOT low,  
+			- `SMOKE` = bit #3 (mask `0x04`) is set only when smoke is detected.  
 	- `CRC` = CRC8 checksum of all the payload bytes.
-- Example data packets (confidential info replaced with `********`):  
+Note: measurement values decoding may not be fully accurate, and some scenarios may not be covered!  
+Example data packets (confidential info replaced with `********`):  
 	- `0x159202120a10********9003c31efa02e42300020000c4` for a energy socket with `{'VOLT': 228, 'AMP': 0.035, 'WATT': 2}`,  
 	- `0x159202120a10********8053c3005800360000000000c7` for a thermometer with `{'TEMP': 8.8, 'HUMID': 54}`.  
 
