@@ -76,7 +76,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                 config = [
                     {"name": device['name'] + '_S',
                      "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                     "value_template": '{{ value_json.SENSE }}',
+                     "value_template": '{{ value_json.SENS }}',
                      "device_class": 'moisture',
                      "expire_after": KEEPALIVE_LEAK_DETECTOR},
                     {"name": device['name'] + '_B',
@@ -91,7 +91,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                 config = [
                     {"name": device['name'] + '_S',
                      "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
-                     "value_template": '{{ value_json.SENSE }}',
+                     "value_template": '{{ value_json.SENS }}',
                      "device_class": 'smoke',
                      "expire_after": KEEPALIVE_SMOKE_DETECTOR},
                     {"name": device['name'] + '_B',
@@ -167,7 +167,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                             low_batt = 'ON'
                         else:
                             low_batt = 'OFF'
-                        value = json.dumps({'SENSE': sense,
+                        value = json.dumps({'SENS': sense,
                                             'BATT': low_batt})
                         topic = 'binary_' + topic
                     elif device['type'] == 'sw_smoke_detector':
@@ -179,7 +179,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                             low_batt = 'ON'
                         else:
                             low_batt = 'OFF'
-                        value = json.dumps({'SENSE': sense,
+                        value = json.dumps({'SENS': sense,
                                             'BATT': low_batt})
                         topic = 'binary_' + topic
                     else:
@@ -262,7 +262,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                                             sense = 'ON'
                                         else:
                                             sense = 'OFF'
-                                        value = json.dumps({'SENSE': sense,
+                                        value = json.dumps({'SENS': sense,
                                                             'BATT': low_batt})
                                         topic = 'binary_' + topic
                                     elif sensor_info['type'] == 'sw_smoke_detector':
@@ -275,7 +275,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                                             sense = 'ON'
                                         else:
                                             sense = 'OFF'
-                                        value = json.dumps({'SENSE': sense,
+                                        value = json.dumps({'SENS': sense,
                                                             'BATT': low_batt})
                                         topic = 'binary_' + topic
                                     else:
