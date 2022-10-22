@@ -71,25 +71,24 @@ A sensor value measurement update payload structure can be defined as `HEADER[6]
 	- `HEADER` = always `0x159202120a10`,  
 	- `CODE` = sensor's listen code (presented as `listen_code` in the JSON payload from previous method),  
 	- `DATA` = measurement values from the sensor/actuator, with the data bytes structured accordingly to the device type:  
-		- Energy sockets (`'type' == 'hw_energy_switch'`): `UNDEFINED[6] VOLT[1] AMP[2] WATT[2] PAD[1]`, where:  
+		- Energy sockets (`'type' == 'hw_energy_switch'`): `UNDEFINED[6] VOLT[1] AMP[2] WATT[2] UNDEFINED[1]`, where:  
 			- `UNDEFINED` = undefined/unused data bytes,  
-			- `VOLT`, `AMP`, `WATT` = current unsigned integers values of the voltage (in Volts), amperage (in milliAmps), and wattage (in Watts),  
-			- `PAD` = padding, all null bytes (`0x00`).
-		- Thermometers (`'type' == 'hw_thermometer'`): `UNDEFINED[2] BATT[1] UNDEFINED[1] TEMP[2] HUMID[1] PAD[5]`, where:  
+			- `VOLT`, `AMP`, `WATT` = current unsigned integers values of the voltage (in Volts), amperage (in milliAmps), and wattage (in Watts).  
+		- Thermometers (`'type' == 'hw_thermometer'`): `UNDEFINED[2] BATT[1] UNDEFINED[1] TEMP[2] HUMID[1] UNDEFINED[5]`, where:  
 			- `UNDEFINED` = undefined/unused data bytes,  
-			- `BATT` = bit #1 (mask 0x01) is set when battery level is NOT low,  
+			- `BATT` = bit #1 (mask `0x01`) is set when battery level is NOT low,  
 			- `TEMP` = current signed integer value of the temperature (in 1/10 °C),  
 			- `HUMID` = current unsigned integer value of the humidity (in %).  
-		- Water detectors (`'type' == 'sw_leak_detector'`): `UNDEFINED[1] BATT[1] UNDEFINED[1] LEAK[1] PAD[8]`, where:  
+		- Water detectors (`'type' == 'sw_leak_detector'`): `UNDEFINED[2] BATT[1] LEAK[1] UNDEFINED[9]`, where:  
 			- `UNDEFINED` = undefined/unused data bytes,  
-			- `BATT` = bit #1 (mask 0x01) is set when battery level is NOT low,  
+			- `BATT` = bit #1 (mask `0x01`) is set when battery level is NOT low,  
 			- `LEAK` = bit #3 (mask `0x04`) is set only when a leak is detected.  
-		- Smoke detectors (`'type' == 'sw_smoke_detector'`): `UNDEFINED[1] BATT[1] SMOKE[1] PAD[9]`, where:  
+		- Smoke detectors (`'type' == 'sw_smoke_detector'`): `UNDEFINED[2] BATT[1] SMOKE[1] UNDEFINED[9]`, where:  
 			- `UNDEFINED` = undefined/unused data bytes,  
-			- `BATT` = bit #1 (mask 0x01) is set when battery level is NOT low,  
+			- `BATT` = bit #1 (mask `0x01`) is set when battery level is NOT low,  
 			- `SMOKE` = bit #3 (mask `0x04`) is set only when smoke is detected.  
 	- `CRC` = CRC8 checksum of all the payload bytes.
-Note: measurement values decoding may not be fully accurate, and some scenarios may not be covered!  
+Note: decoding of measurement values may not be fully accurate - some scenarios may not be covered!  
 Example data packets (confidential info replaced with `********`):  
 	- `0x159202120a10********9003c31efa02e42300020000c4` for a energy socket with `{'VOLT': 228, 'AMP': 0.035, 'WATT': 2}`,  
 	- `0x159202120a10********8053c3005800360000000000c7` for a thermometer with `{'TEMP': 8.8, 'HUMID': 54}`.  

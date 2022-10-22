@@ -247,18 +247,18 @@ class mqtt_homewizard(mqtt.Mqtt):
                                                             'WATT': buff[2]})
                                     elif sensor_info['type'] == 'hw_thermometer':
                                         buff = struct.unpack('<2xBxhB5x', sensor_data)
-                                        if buff[0] & HIGH_BATT_MASK: # TBD
+                                        if buff[0] & HIGH_BATT_MASK:
                                             batt = 100
                                         else:
                                             batt = 0
                                         value = json.dumps({'TEMP': round(buff[1] / 10.0, 1), 'HUMID': buff[2], 'BATT': batt})
                                     elif sensor_info['type'] == 'sw_leak_detector':
-                                        buff = struct.unpack('<xBxB8x', sensor_data)
-                                        if buff[0] & HIGH_BATT_MASK: # TBD
+                                        buff = struct.unpack('<2xB9x', sensor_data)
+                                        if buff[0] & HIGH_BATT_MASK:
                                             low_batt = 'OFF'
                                         else:
                                             low_batt = 'ON'
-                                        if buff[1] & STATUS_BIT_MASK:
+                                        if buff[0] & STATUS_BIT_MASK:
                                             sense = 'ON'
                                         else:
                                             sense = 'OFF'
@@ -266,12 +266,12 @@ class mqtt_homewizard(mqtt.Mqtt):
                                                             'BATT': low_batt})
                                         topic = 'binary_' + topic
                                     elif sensor_info['type'] == 'sw_smoke_detector':
-                                        buff = struct.unpack('<xBB9x', sensor_data)
-                                        if buff[0] & HIGH_BATT_MASK: # TBD
+                                        buff = struct.unpack('<2xB9x', sensor_data)
+                                        if buff[0] & HIGH_BATT_MASK:
                                             low_batt = 'OFF'
                                         else:
                                             low_batt = 'ON'
-                                        if buff[1] & STATUS_BIT_MASK:
+                                        if buff[0] & STATUS_BIT_MASK:
                                             sense = 'ON'
                                         else:
                                             sense = 'OFF'
@@ -279,7 +279,7 @@ class mqtt_homewizard(mqtt.Mqtt):
                                                             'BATT': low_batt})
                                         topic = 'binary_' + topic
                                     else:
-                                        value = {'UNDEFINED': sensor_data.hex()}
+                                        value = {'UNDEFINED': str(sensor_data.hex())}
                                     try:
                                         self.mqtt_publish('homeassistant/' + topic + sensor_info['name'] + '/state',
                                                           payload=value)
