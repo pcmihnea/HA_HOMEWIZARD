@@ -145,46 +145,46 @@ class mqtt_homewizard(mqtt.Mqtt):
             devices = self.cloud_connect()
             if bool(devices):
                 for device in devices:
-                    topic = 'sensor/'
-                    if device['type'] == 'hw_energy_switch':
-                        value = json.dumps({'VOLT': device['state']['energy']['voltage'],
-                                            'AMP': round(device['state']['energy']['amperage'] / 1000.0, 3),
-                                            'WATT': device['state']['energy']['wattage']})
-                    elif device['type'] == 'hw_thermometer':
-                        if device['state']['low_battery']:
-                            batt = 0
-                        else:
-                            batt = 100
-                        value = json.dumps({'TEMP': device['state']['temperature'],
-                                            'HUMID': device['state']['humidity'],
-                                            'BATT': batt})
-                    elif device['type'] == 'sw_leak_detector':
-                        if 'ok' != device['state']['status']:
-                            sense = 'ON'
-                        else:
-                            sense = 'OFF'
-                        if device['state']['low_battery']:
-                            low_batt = 'ON'
-                        else:
-                            low_batt = 'OFF'
-                        value = json.dumps({'SENS': sense,
-                                            'BATT': low_batt})
-                        topic = 'binary_' + topic
-                    elif device['type'] == 'sw_smoke_detector':
-                        if 'ok' != device['state']['status']:
-                            sense = 'ON'
-                        else:
-                            sense = 'OFF'
-                        if device['state']['low_battery']:
-                            low_batt = 'ON'
-                        else:
-                            low_batt = 'OFF'
-                        value = json.dumps({'SENS': sense,
-                                            'BATT': low_batt})
-                        topic = 'binary_' + topic
-                    else:
-                        continue
                     if 'ok' == device['status']:
+                        topic = 'sensor/'
+                        if device['type'] == 'hw_energy_switch':
+                            value = json.dumps({'VOLT': device['state']['energy']['voltage'],
+                                                'AMP': round(device['state']['energy']['amperage'] / 1000.0, 3),
+                                                'WATT': device['state']['energy']['wattage']})
+                        elif device['type'] == 'hw_thermometer':
+                            if device['state']['low_battery']:
+                                batt = 0
+                            else:
+                                batt = 100
+                            value = json.dumps({'TEMP': device['state']['temperature'],
+                                                'HUMID': device['state']['humidity'],
+                                                'BATT': batt})
+                        elif device['type'] == 'sw_leak_detector':
+                            if 'ok' != device['state']['status']:
+                                sense = 'ON'
+                            else:
+                                sense = 'OFF'
+                            if device['state']['low_battery']:
+                                low_batt = 'ON'
+                            else:
+                                low_batt = 'OFF'
+                            value = json.dumps({'SENS': sense,
+                                                'BATT': low_batt})
+                            topic = 'binary_' + topic
+                        elif device['type'] == 'sw_smoke_detector':
+                            if 'ok' != device['state']['status']:
+                                sense = 'ON'
+                            else:
+                                sense = 'OFF'
+                            if device['state']['low_battery']:
+                                low_batt = 'ON'
+                            else:
+                                low_batt = 'OFF'
+                            value = json.dumps({'SENS': sense,
+                                                'BATT': low_batt})
+                            topic = 'binary_' + topic
+                        else:
+                            continue
                         try:
                             self.mqtt_publish('homeassistant/' + topic + device['name'] + '/state', payload=value)
                         except Exception:
