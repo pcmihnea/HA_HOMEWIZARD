@@ -95,7 +95,7 @@ Example data packets (confidential info replaced with `********`):
 
 ## 3. Configure the data relay
 The implementation relies on a [AppDaemon-powered](https://appdaemon.readthedocs.io/en/latest/INSTALL.html#install-using-hass-io) HomeAssistant installation.  
-- Add the required Python package to the AppDaemon configuration, by means of the AppDaemon add-on configuration page on the HomeAssistant GUI: `serial`.  	
+- Add the required Python package to the AppDaemon configuration, by means of the AppDaemon add-on configuration page on the HomeAssistant GUI: `pyserial`.  	
 - Edit the `private_config.json` file by configuring:  
 	- Homewizard cloud authentication credentials (`USERNAME`, `PASSWORD`),  
 	- `CLOUD_POLLING_INTERVAL` sets the interval (in seconds) for cloud polling - if value is equal to `0` then local sampling is used,  
