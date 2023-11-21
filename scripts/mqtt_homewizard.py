@@ -9,7 +9,6 @@ import mqttapi as mqtt  # AppDaemon-specific API
 import requests
 import serial
 
-
 DEBUG_PRINT = 0
 
 PACKET_LEN = 23
@@ -21,10 +20,10 @@ TIMEOUT_SERIAL_READ = 5
 TIMEOUT_HTTP_REQUEST = 1
 KEEPALIVE_ENERGY_SWITCH = 60 * 5
 KEEPALIVE_THERMOMETER = 60 * 10
-KEEPALIVE_LEAK_DETECTOR = 60 * (60 + 10)
-KEEPALIVE_SMOKE_DETECTOR = 60 * (60 * 24 + 10)
+KEEPALIVE_LEAK_DETECTOR = 60 * (60 * 3 + 10)
+KEEPALIVE_SMOKE_DETECTOR = 60 * (60 * 25 + 10)
 
-PRIVATE_CONFIG_PATH = '/config/appdaemon/apps'
+PRIVATE_CONFIG_PATH = '/config/apps'
 
 PRIVATE_CONF = {}
 
@@ -34,7 +33,6 @@ class mqtt_homewizard(mqtt.Mqtt):
     async def mqtt_discovery(self):
         for device_id in PRIVATE_CONF['DEVICE_CODES']:
             device = PRIVATE_CONF['DEVICE_CODES'][device_id]
-            topic = 'sensor/'
             sub_id = 0
             if device['type'] == 'hw_energy_switch':
                 config = [
@@ -93,14 +91,14 @@ class mqtt_homewizard(mqtt.Mqtt):
                      "state_class": 'measurement',
                      "expire_after": KEEPALIVE_LEAK_DETECTOR},
                     {"name": device['name'] + '_B',
-                     "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
+                     "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                      "value_template": '{{ value_json.BATT }}',
                      "device_class": 'battery',
                      "state_class": 'measurement',
+                     "unit_of_measurement": '%',
                      "expire_after": KEEPALIVE_LEAK_DETECTOR},
                     {}
                 ]
-                topic = 'binary_' + topic
             elif device['type'] == 'sw_smoke_detector':
                 config = [
                     {"name": device['name'] + '_S',
@@ -110,20 +108,24 @@ class mqtt_homewizard(mqtt.Mqtt):
                      "state_class": 'measurement',
                      "expire_after": KEEPALIVE_SMOKE_DETECTOR},
                     {"name": device['name'] + '_B',
-                     "state_topic": 'homeassistant/binary_sensor/' + device['name'] + '/state',
+                     "state_topic": 'homeassistant/sensor/' + device['name'] + '/state',
                      "value_template": '{{ value_json.BATT }}',
                      "device_class": 'battery',
                      "state_class": 'measurement',
+                     "unit_of_measurement": '%',
                      "expire_after": KEEPALIVE_SMOKE_DETECTOR},
                     {}
                 ]
-                topic = 'binary_' + topic
             else:
-                    continue
+                continue
             for cfg in config:
                 if bool(cfg):
                     cfg['unique_id'] = device['code'] + str(sub_id)
                     sub_id += 1
+                    if 'binary' in cfg['state_topic']:
+                        topic = 'binary_sensor/'
+                    else:
+                        topic = 'sensor/'
                     self.mqtt_publish('homeassistant/' + topic + cfg['name'] + '/config',
                                       payload=json.dumps(cfg), retain=True)
                     time.sleep(0.1)
@@ -162,7 +164,6 @@ class mqtt_homewizard(mqtt.Mqtt):
             if bool(devices):
                 for device in devices:
                     if 'ok' == device['status']:
-                        topic = 'sensor/'
                         if device['type'] == 'hw_energy_switch':
                             value = json.dumps({'VOLT': device['state']['energy']['voltage'],
                                                 'AMP': round(device['state']['energy']['amperage'] / 1000.0, 3),
@@ -175,34 +176,25 @@ class mqtt_homewizard(mqtt.Mqtt):
                             value = json.dumps({'TEMP': device['state']['temperature'],
                                                 'HUMID': device['state']['humidity'],
                                                 'BATT': batt})
-                        elif device['type'] == 'sw_leak_detector':
+                        elif (device['type'] == 'sw_leak_detector') or (device['type'] == 'sw_smoke_detector'):
                             if 'ok' != device['state']['status']:
                                 sense = 'ON'
                             else:
                                 sense = 'OFF'
                             if device['state']['low_battery']:
-                                low_batt = 'ON'
+                                batt = 0
                             else:
-                                low_batt = 'OFF'
-                            value = json.dumps({'SENS': sense,
-                                                'BATT': low_batt})
-                            topic = 'binary_' + topic
-                        elif device['type'] == 'sw_smoke_detector':
-                            if 'ok' != device['state']['status']:
-                                sense = 'ON'
-                            else:
-                                sense = 'OFF'
-                            if device['state']['low_battery']:
-                                low_batt = 'ON'
-                            else:
-                                low_batt = 'OFF'
-                            value = json.dumps({'SENS': sense,
-                                                'BATT': low_batt})
-                            topic = 'binary_' + topic
+                                batt = 100
+                            value = json.dumps({'BATT': batt})
+                            try:
+                                self.mqtt_publish('homeassistant/binary_sensor/' + device['name'] + '/state',
+                                                  payload=json.dumps({'SENS': sense}))
+                            except Exception:
+                                self.log(traceback.format_exc())
                         else:
                             continue
                         try:
-                            self.mqtt_publish('homeassistant/' + topic + device['name'] + '/state', payload=value)
+                            self.mqtt_publish('homeassistant/sensor/' + device['name'] + '/state', payload=value)
                         except Exception:
                             self.log(traceback.format_exc())
                 self.log('CLOUD_POLL OK')
@@ -256,7 +248,6 @@ class mqtt_homewizard(mqtt.Mqtt):
                                         (data_elems[0] << 32) | data_elems[1]):
                                     sensor_info = PRIVATE_CONF['DEVICE_CODES'][format(data_elems[2], 'X')]
                                     sensor_data = bytearray(data_elems[3])
-                                    topic = 'sensor/'
                                     if sensor_info['type'] == 'hw_energy_switch':
                                         buff = struct.unpack('<6xBHHx', sensor_data)
                                         value = json.dumps({'VOLT': buff[0], 'AMP': round(buff[1] / 1000.0, 3),
@@ -267,8 +258,10 @@ class mqtt_homewizard(mqtt.Mqtt):
                                             batt = 100
                                         else:
                                             batt = 0
-                                        value = json.dumps({'TEMP': round(buff[1] / 10.0, 1), 'HUMID': buff[2], 'BATT': batt})
-                                    elif sensor_info['type'] == 'sw_leak_detector':
+                                        value = json.dumps(
+                                            {'TEMP': round(buff[1] / 10.0, 1), 'HUMID': buff[2], 'BATT': batt})
+                                    elif (sensor_info['type'] == 'sw_leak_detector') or (
+                                            sensor_info['type'] == 'sw_smoke_detector'):
                                         buff = struct.unpack('<2xB9x', sensor_data)
                                         if buff[0] & HIGH_BATT_MASK:
                                             low_batt = 'OFF'
@@ -278,31 +271,22 @@ class mqtt_homewizard(mqtt.Mqtt):
                                             sense = 'ON'
                                         else:
                                             sense = 'OFF'
-                                        value = json.dumps({'SENS': sense,
-                                                            'BATT': low_batt})
-                                        topic = 'binary_' + topic
-                                    elif sensor_info['type'] == 'sw_smoke_detector':
-                                        buff = struct.unpack('<2xB9x', sensor_data)
-                                        if buff[0] & HIGH_BATT_MASK:
-                                            low_batt = 'OFF'
-                                        else:
-                                            low_batt = 'ON'
-                                        if buff[0] & STATUS_BIT_MASK:
-                                            sense = 'ON'
-                                        else:
-                                            sense = 'OFF'
-                                        value = json.dumps({'SENS': sense,
-                                                            'BATT': low_batt})
-                                        topic = 'binary_' + topic
+                                        value = json.dumps({'BATT': low_batt})
+                                        try:
+                                            self.mqtt_publish(
+                                                'homeassistant/binary_sensor/' + sensor_info['name'] + '/state',
+                                                payload=json.dumps({'SENS': sense}))
+                                        except Exception:
+                                            self.log(traceback.format_exc())
                                     else:
                                         value = {'UNDEFINED': str(sensor_data.hex())}
                                     try:
-                                        self.mqtt_publish('homeassistant/' + topic + sensor_info['name'] + '/state',
+                                        self.mqtt_publish('homeassistant/sensor/' + sensor_info['name'] + '/state',
                                                           payload=value)
                                     except Exception:
                                         self.log(traceback.format_exc())
                             except KeyError:
-                                pass # sensor most likely offline
+                                pass  # sensor most likely offline
                             except Exception:
                                 self.log(traceback.format_exc())
                         rx_data = []

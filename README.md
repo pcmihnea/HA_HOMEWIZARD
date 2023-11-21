@@ -95,33 +95,11 @@ Example data packets (confidential info replaced with `********`):
 
 ## 3. Configure the data relay
 The implementation relies on a [AppDaemon-powered](https://appdaemon.readthedocs.io/en/latest/INSTALL.html#install-using-hass-io) HomeAssistant installation.  
-- For local sampling, as a consequence of using a USB-to-serial adapter, at each device plug-in and system restart, the console name (`/dev/tty*`) could be reassigned a random name.  
-	In Debian (Raspbian) add the following line in `/etc/udev/rules.d/99-com.rules`: `SUBSYSTEM=='tty', ATTRS{idVendor}=='0403', ATTRS{idProduct}=='6014', ATTRS{serial}=='0123456789ABCDEF', SYMLINK+='ttyCOM1'`, where:  
-		- `0403` = the USB-to-Serial device's USB Vendor ID,  
-		- `6014` = USB Product ID,  
-		- `0123456789ABCDEF` = USB serial number,  
-		- `ttyCOM1` = the console name to be static assigned.  
-		To obtain the USB IDs and SN, run `lsusb -v` and scroll to the device used (check the `idProduct` name), and noting its `idVendor`, `idProduct`, and `iSerial` attribute values.  
-- Add the required Python packages to the AppDaemon configuration, by means of the AppDaemon add-on configuration page on the HomeAssistant GUI: `pyserial`, `requests`.  
-- Add the MQTT login to the AppDaemon configuration, by modifying the `"/config/appdaemon/appdaemon.yaml` file:
-	```
-	[...]
-	plugins:
-    [...]
-		MQTT:
-		   type: mqtt
-		   namespace: mqtt
-		   client_host: _homeassistant_ip_address_
-		   client_port: 1883
-		   client_id: appdaemon
-		   client_user: _username_
-		   client_password: _password_
-	```
-	
+- Add the required Python package to the AppDaemon configuration, by means of the AppDaemon add-on configuration page on the HomeAssistant GUI: `serial`.  	
 - Edit the `private_config.json` file by configuring:  
 	- Homewizard cloud authentication credentials (`USERNAME`, `PASSWORD`),  
 	- `CLOUD_POLLING_INTERVAL` sets the interval (in seconds) for cloud polling - if value is equal to `0` then local sampling is used,  
-	- Serial port name `SERIAL_PORT`, relevant only during local sampling,  
+	- Serial port name `SERIAL_PORT` (relevant only during local sampling); it is recommended to use the USB-to-serial TTY path based on the device's unique id, such as `/dev/serial/by-id/usb-FTDI_C232HM-EDHSL-0_XXXXXXX-if00-port0` (where `XXXXXXX` is the device SN),  
 	- A valid `DEVICE_CODES` dictionary.  
 		By design, even if `CLOUD_POLLING_INTERVAL` is set to `0`, the script will attempt to connect to the cloud at each startup and each day after midnight (01:00:00, or 1am).  
 		If connection is successful, the script will update the `private_config.json` file with all the paired devices' RF codes and assigned names. It will also notify the HomeAssistant instance of any changes in paired sensors.  
@@ -139,4 +117,4 @@ The implementation relies on a [AppDaemon-powered](https://appdaemon.readthedocs
 User configuration is not necessary, as [MQTT auto-discovery](https://www.home-assistant.io/docs/mqtt/discovery/) is implemented.  
 
 # Who/where/when?
-All the reverse-engineering, development, integration, and documentation efforts are based on the latest software and hardware versions available at the time of writing (November 2022), and licensed under the GNU General Public License v3.0.
+All the reverse-engineering, development, integration, and documentation efforts are based on the latest software and hardware versions available at the time of writing (November 2023), and licensed under the GNU General Public License v3.0.
